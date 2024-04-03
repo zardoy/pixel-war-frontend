@@ -1,0 +1,7 @@
+{
+    "extends": "@zardoy/tsconfig/react",
+    "compilerOptions": {},
+    "include": [
+        "src"
+    ]
+}
