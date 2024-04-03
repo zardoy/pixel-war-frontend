@@ -3,7 +3,9 @@
   "displayName": "Pixel War",
   "license": "MIT",
   "dependencies": {
+    "@glideapps/glide-data-grid": "^6.0.3",
     "@types/styled-components": "^5.1.34",
+    "@vitejs/plugin-react": "^4.2.1",
     "@zardoy/react-util": "^0.2.1",
     "@zardoy/vit": "^0.1.9",
     "autoprefixer": "^10.4.19",
