@@ -26,9 +26,9 @@ class BasicCellsGrid {
         return this.scale.reduce((acc, val) => acc * val, 1)
     }
 
-    drawCell(x: number, y: number, color: string | [number, number, number]) {
+    drawCell(x: number, y: number, color: string | [number, number, number] | number) {
         this.ctx.save()
-        this.ctx.fillStyle = typeof color === 'string' ? color : `rgb(${color[0]}, ${color[1]}, ${color[2]})`
+        this.ctx.fillStyle = typeof color === 'string' ? color : Array.isArray(color) ? `rgb(${color.join(',')})` : `rgb(${color},${color},${color})`
         this.ctx.fillRect(x * this.cellSize, y * this.cellSize, this.cellSize, this.cellSize)
         this.ctx.restore()
     }
@@ -36,6 +36,16 @@ class BasicCellsGrid {
     drawCanvas() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
         const { gridSize } = this
+        for (const [x, y, color] of [...this.cellsData, ...this.newCellsData]) {
+            this.drawCell(x, y, color)
+        }
+
+        if (this.currentCursor) {
+            const x = Math.floor((this.currentCursor.x * this.getScale()) / this.cellSize)
+            const y = Math.floor((this.currentCursor.y * this.getScale()) / this.cellSize)
+            this.drawCell(x, y, 'rgba(0, 0, 0, 0.5)')
+        }
+
         if (this.displayGrid) {
             this.ctx.strokeStyle = 'black'
             this.ctx.lineWidth = 0.5
@@ -53,15 +63,6 @@ class BasicCellsGrid {
                 this.ctx.lineTo(i * this.cellSize, gridSize * this.cellSize)
                 this.ctx.stroke()
             }
-        }
-        for (const [x, y, color] of [...this.cellsData, ...this.newCellsData]) {
-            this.drawCell(x, y, color)
-        }
-
-        if (this.currentCursor) {
-            const x = Math.floor((this.currentCursor.x * this.getScale()) / this.cellSize)
-            const y = Math.floor((this.currentCursor.y * this.getScale()) / this.cellSize)
-            this.drawCell(x, y, 'rgba(0, 0, 0, 0.5)')
         }
     }
 
