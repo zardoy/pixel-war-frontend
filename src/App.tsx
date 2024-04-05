@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { useFetch } from './fetcher'
+import { gql } from 'graphql-request'
 
 class CanvasScalableGrid {
     ctx: CanvasRenderingContext2D
@@ -127,6 +129,17 @@ class PinchZoomHandler {
 }
 
 export default () => {
+    const document = gql`
+        query {
+            getPixels {
+                pixels
+            }
+        }
+    `
+    const {data, loading} = useFetch({
+        document,
+    })
+
     const canvasRef = useRef(null)
     const [canvasScalableGrid, setCanvasScalableGrid] = useState<CanvasScalableGrid>(null!)
     const [drawMode, setDrawMode] = useState(true)
