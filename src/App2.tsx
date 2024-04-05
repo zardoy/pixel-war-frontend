@@ -107,7 +107,7 @@ export default () => {
             },
             document: gql`
                 mutation ($x: [Int!]!, $y: [Int!]!, $color: [String!]!) {
-                    setPixels(x: $x, y: $y, color: $color) {
+                    setPixel(x: $x, y: $y, color: $color) {
                         void
                     }
                 }
