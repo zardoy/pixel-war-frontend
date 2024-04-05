@@ -8,6 +8,7 @@ import { NextUIProvider } from '@nextui-org/react'
 import { createModal, config } from './wagmi'
 import { WagmiConfig } from 'wagmi'
 import GlobalToast, { globalToast } from './GlobalToast'
+import './global.css'
 
 createModal()
 
@@ -26,7 +27,11 @@ window.addEventListener('unhandledrejection', e => {
 
 renderToDom(
     <WagmiConfig config={config}>
-        <NextUIProvider>
+        <NextUIProvider
+            style={{
+                height: '100%',
+            }}
+        >
             <GlobalToast />
             <App2 />
         </NextUIProvider>

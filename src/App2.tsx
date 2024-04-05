@@ -16,10 +16,12 @@ class BasicCellsGrid {
     displayGrid = true
     scale = [] as number[]
     currentCursor: { x: number; y: number } | null = null
+    previousCursor: { x: number; y: number } | null = null
 
     constructor(public canvas: HTMLCanvasElement, public cellSize: number) {
         this.canvas = canvas
         this.ctx = canvas.getContext('2d')!
+        this.ctx.imageSmoothingEnabled = false
     }
 
     getScale() {
@@ -33,42 +35,74 @@ class BasicCellsGrid {
         this.ctx.restore()
     }
 
+    getXyFromAbslute(x: number, y: number) {
+        return [Math.floor((x * this.getScale()) / this.cellSize), Math.floor((y * this.getScale()) / this.cellSize)] as [number, number]
+    }
+
+    changeCursor() {
+        if (this.currentCursor === this.previousCursor) return
+        if (this.previousCursor) {
+            const [x, y] = this.getXyFromAbslute(this.previousCursor.x, this.previousCursor.y)
+            this.restoreCell(x, y)
+        }
+
+        this.previousCursor = this.currentCursor
+
+        if (this.currentCursor) {
+            const [x, y] = this.getXyFromAbslute(this.currentCursor.x, this.currentCursor.y)
+            this.drawCell(x, y, 'rgba(0, 0, 0, 0.5)')
+        }
+
+        this.drawGrid()
+    }
+
+    restoreCell(x: number, y: number) {
+        const allCells = [...this.newCellsData, ...this.cellsData]
+        const cell = allCells.find(([cellX, cellY]) => cellX === x && cellY === y)
+        if (cell) {
+            this.drawCell(x, y, cell[2])
+        } else {
+            this.ctx.clearRect(x * this.cellSize, y * this.cellSize, this.cellSize, this.cellSize)
+        }
+        this.drawGrid()
+    }
+
     drawCanvas() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
-        const { gridSize } = this
         for (const [x, y, color] of [...this.cellsData, ...this.newCellsData]) {
             this.drawCell(x, y, color)
         }
 
-        if (this.currentCursor) {
-            const x = Math.floor((this.currentCursor.x * this.getScale()) / this.cellSize)
-            const y = Math.floor((this.currentCursor.y * this.getScale()) / this.cellSize)
-            this.drawCell(x, y, 'rgba(0, 0, 0, 0.5)')
-        }
+        this.drawGrid()
+    }
 
-        if (this.displayGrid) {
-            this.ctx.strokeStyle = 'black'
-            this.ctx.lineWidth = 0.5
-            // horizontal lines
-            for (let i = 0; i < gridSize; i++) {
-                this.ctx.beginPath()
-                this.ctx.moveTo(0, i * this.cellSize)
-                this.ctx.lineTo(gridSize * this.cellSize, i * this.cellSize)
-                this.ctx.stroke()
-            }
-            // vertical lines
-            for (let i = 0; i < gridSize; i++) {
-                this.ctx.beginPath()
-                this.ctx.moveTo(i * this.cellSize, 0)
-                this.ctx.lineTo(i * this.cellSize, gridSize * this.cellSize)
-                this.ctx.stroke()
-            }
+    drawGrid() {
+        if (!this.displayGrid) return
+        const { gridSize } = this
+        this.ctx.save()
+        this.ctx.strokeStyle = 'black'
+        this.ctx.lineWidth = 0.5
+        // horizontal lines
+        for (let i = 0; i < gridSize; i++) {
+            this.ctx.beginPath()
+            this.ctx.moveTo(0, i * this.cellSize)
+            this.ctx.lineTo(gridSize * this.cellSize, i * this.cellSize)
+            this.ctx.stroke()
         }
+        // vertical lines
+        for (let i = 0; i < gridSize; i++) {
+            this.ctx.beginPath()
+            this.ctx.moveTo(i * this.cellSize, 0)
+            this.ctx.lineTo(i * this.cellSize, gridSize * this.cellSize)
+            this.ctx.stroke()
+        }
+        this.ctx.restore()
     }
 
     placeNewCell(x: number, y: number, color: string) {
         this.newCellsData.push([x, y, color])
-        this.drawCanvas()
+        this.drawCell(x, y, color)
+        this.drawGrid()
     }
 }
 
@@ -146,11 +180,24 @@ export default () => {
 
     const hasEdits = newPixels > 0
 
+    const getCursorPos = (e: MouseEvent) => {
+        const rect = canvasRef.current.getBoundingClientRect()
+        return { x: e.clientX - rect.left, y: e.clientY - rect.top }
+    }
+
     return (
-        <div style={{ display: 'flex' }}>
+        <div
+            style={{ display: 'flex', height: '100%' }}
+            onContextMenu={e => {
+                e.preventDefault()
+            }}
+        >
             <TransformWrapper
                 limitToBounds={false}
                 onZoom={ref => {
+                    grid!.scale[1] = 1 / ref.state.scale
+                }}
+                onPanning={ref => {
                     grid!.scale[1] = 1 / ref.state.scale
                 }}
                 // centerOnInit
@@ -165,6 +212,7 @@ export default () => {
                     wrapperStyle={{
                         border: '1px solid black',
                         willChange: 'transform',
+                        height: '100dvh',
                     }}
                 >
                     <canvas
@@ -176,9 +224,8 @@ export default () => {
                         }}
                         onPointerMove={e => {
                             if (!editingMode) return
-                            const rect = canvasRef.current.getBoundingClientRect()
-                            grid!.currentCursor = { x: e.clientX - rect.left, y: e.clientY - rect.top }
-                            grid!.drawCanvas()
+                            grid!.currentCursor = getCursorPos(e as any)
+                            grid!.changeCursor()
                         }}
                         onTouchMove={e => {
                             if (!editingMode) return
@@ -187,20 +234,17 @@ export default () => {
                         }}
                         onPointerOut={() => {
                             grid!.currentCursor = null
-                            grid!.drawCanvas()
+                            grid!.changeCursor()
                         }}
-                        onClick={() => {
+                        onClick={e => {
                             if (!editingMode) return
 
-                            const x = Math.floor((grid!.currentCursor!.x * grid!.getScale()) / grid!.cellSize)
-                            const y = Math.floor((grid!.currentCursor!.y * grid!.getScale()) / grid!.cellSize)
-                            grid!.placeNewCell(x, y, 'red')
+                            const { x, y } = getCursorPos(e as unknown as MouseEvent)
+                            const xyRel = grid!.getXyFromAbslute(x, y)
+                            grid!.placeNewCell(...xyRel, 'black')
                             setNewPixels(grid!.newCellsData.length)
                         }}
                         onTouchStart={e => {
-                            e.preventDefault()
-                        }}
-                        onContextMenu={e => {
                             e.preventDefault()
                         }}
                         style={{
@@ -212,7 +256,12 @@ export default () => {
                             zIndex: -1,
                             // background: 'linear-gradient(45deg, #f3ec78, #af4261)',
                         }}
-                    ></canvas>
+                        // todo
+                        onDoubleClick={e => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                        }}
+                    />
                 </TransformComponent>
             </TransformWrapper>
             <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none' }}>
@@ -221,9 +270,13 @@ export default () => {
                         <Button
                             onClick={() => {
                                 setEditingMode(!editingMode)
+                                if (!hasEdits && editingMode) {
+                                    grid!.displayGrid = false
+                                    grid!.drawCanvas()
+                                }
                             }}
                         >
-                            {editingMode ? 'Pause Editing' : 'Start Editing'}
+                            {editingMode ? (hasEdits ? 'Pause Editing' : 'Stop Editing') : 'Start Editing'}
                         </Button>
                         {hasEdits && (
                             <Button color="success" onClick={placePixels.onClick} isLoading={placePixels.disabled}>
