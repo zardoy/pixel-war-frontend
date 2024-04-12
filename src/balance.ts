@@ -1,12 +1,62 @@
 import { getContract, getPublicClient } from '@wagmi/core'
+import { GraphQLClient, gql } from 'graphql-request'
 import { useEffect, useState } from 'react'
-import { proxy, useSnapshot } from 'valtio'
+import { proxy, ref, useSnapshot } from 'valtio'
 import { formatEther } from 'viem'
 import { useWalletClient } from 'wagmi'
+import { DEFAULT_BASE_URL } from './fetcher'
 
 export const balanceUpdate = proxy({
     update: 0,
 })
+
+export const contractState = proxy({
+    contract: null,
+    address: '',
+    abi: [],
+})
+
+export const loadContract = async client => {
+    const document = gql`
+        query Contract {
+            contract {
+                address
+                abi
+            }
+        }
+    `
+    type Type = {
+        contract: {
+            address: string
+            abi: string
+        }
+    }
+    const data = await new GraphQLClient(import.meta.env.VITE_GRAPHQL_ENDPOINT || DEFAULT_BASE_URL).request<Type>(document, {})
+    const address = data.contract.address
+    contractState.address = address
+    const abi = JSON.parse(data.contract.abi)
+    contractState.abi = abi
+
+    // const client = (await getWalletClient())!
+    const contract = getContract({
+        abi,
+        address: address as any,
+        walletClient: client,
+        // publicClient: client,
+    })
+    //@ts-ignore
+    contract.on = (eventName, fn) => {
+        ;(contract as any).watchEvent[eventName](
+            {},
+            {
+                onLogs: logs => {
+                    fn(logs)
+                },
+            },
+        )
+    }
+    contractState.contract = ref(contract) as any
+}
 
 export const getTokenContract = async client => {
     const erc20Contract = getContract({

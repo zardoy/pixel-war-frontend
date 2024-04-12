@@ -4,11 +4,12 @@ import { gql } from 'graphql-request'
 import { Button } from '@nextui-org/react'
 import { plainFetch, useFetch } from './fetcher'
 import { useWeb3Modal } from '@web3modal/wagmi/react'
-import { useAccount } from 'wagmi'
+import { useAccount, useWalletClient } from 'wagmi'
 import { useAwaitedClickAction } from '@zardoy/react-util'
 import { clampAddress } from './utils'
 import { EditableCanvasGrid } from './EditableCanvasGrid'
-import { useBalance } from './balance'
+import { contractState, loadContract, useBalance } from './balance'
+import { useSnapshot } from 'valtio'
 
 const NEW_PIXELS_LIMIT = 10
 
@@ -18,12 +19,20 @@ export default () => {
     const { address } = useAccount()
     const balance = useBalance()
     const limit = Math.min(NEW_PIXELS_LIMIT, typeof balance === 'number' ? balance : NEW_PIXELS_LIMIT)
+    const { contract } = useSnapshot(contractState)
 
     const containerRef = useRef<HTMLElement>(null!)
     const [grid, setGrid] = useState<EditableCanvasGrid | null>(null)
     const [editingMode, setEditingMode] = useState(false)
     const [newPixels, setNewPixels] = useState(0)
     const [color, setColor] = useState('#000')
+
+    const { data: client } = useWalletClient()
+
+    useEffect(() => {
+        if (!client) return
+        loadContract(client)
+    }, [])
 
     const requestPixels = gql`
         query {
@@ -181,6 +190,7 @@ export default () => {
                             <div className="flex flex-col gap-2 pointer-events-auto absolute top-0">
                                 <Button
                                     disabled={!grid}
+                                    // disabled={!grid || !contract}
                                     onClick={() => {
                                         setEditingMode(!editingMode)
                                         if (!hasEdits && editingMode) {
