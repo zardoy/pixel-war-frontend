@@ -11,7 +11,7 @@ export default () => {
     const { open, value } = useSnapshot(globalToast)
 
     return (
-        <div className="fixed bottom-[20px] right-[20px]">
+        <div className="fixed bottom-[20px] right-[20px] z-[1]">
             {open && (
                 <Snippet
                     color="danger"
@@ -25,6 +25,7 @@ export default () => {
                         },
                     }}
                     copyIcon={<Close />}
+                    className="bg-[#f9cfda]"
                 >
                     {value}
                 </Snippet>
